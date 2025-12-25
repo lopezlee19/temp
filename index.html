@@ -1,0 +1,381 @@
+这是一个重大的视觉升级版本。为了打造您想要的“未来感”和“科幻感”深空氛围，我进行了以下核心改造：
+
+1. **后期处理辉光 (Bloom Post-Processing)**：这是最关键的一步。引入了电影级的辉光效果，让所有的粒子不再是平面的点，而是真正发光的光子，光芒会溢出到周围区域，产生迷人的晕影。
+2. **深空星云背景**：不再是简单的黑色渐变。我用 CSS 和多层 3D 粒子系统构建了一个包含深蓝、紫罗兰色调的星云背景，增加了宇宙的深邃感。
+3. **多层级星空与太空尘埃**：背景现在有三层不同速度、大小和亮度的星星，以及一层缓慢漂浮的“太空尘埃”，创造出强烈的视差和空间纵深感。
+4. **全息网格地屏**：在底部增加了一个微妙的发光网格，营造出一种“全息甲板”或未来舞台的基底感。
+
+请复制以下完整代码（包含新增的多个库引用）：
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>未来际毛毛圣诞树</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            /* 升级的深空星云背景 */
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            touch-action: none;
+        }
+        /* 添加一个微妙的科幻网格叠加层 */
+        .grid-overlay {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg);
+            opacity: 0.2;
+            pointer-events: none;
+            animation: gridMove 20s linear infinite;
+        }
+        @keyframes gridMove {
+            0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+            100% { transform: perspective(500px) rotateX(60deg) translateY(50px); }
+        }
+
+        #loading {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff; font-size: 14px;
+            pointer-events: none; transition: opacity 0.5s; letter-spacing: 2px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        #instruction {
+            position: absolute; bottom: 90px; width: 100%;
+            text-align: center;
+            color: rgba(100, 255, 255, 0.8);
+            font-size: 16px; pointer-events: none;
+            opacity: 0; transition: opacity 1s;
+            text-shadow: 0 0 15px #00ffff;
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-overlay"></div>
+    <div id="loading">系统初始化中 / INITIALIZING...</div>
+    <div id="instruction">轻触屏幕 // 启动传输</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <script>
+        // --- Tween 动画库 ---
+        const TWEEN={tweens:[],update:function(){this.tweens=this.tweens.filter(t=>t.update())},Tween:function(t){this.object=t,this.target={},this.duration=1e3,this.startTime=0,this.easingFunction=t=>t,this.started=!1,this.to=function(t,e){return this.target=t,this.duration=e,this.startValues={},this},this.easing=function(t){return this.easingFunction=t,this},this.start=function(){this.startTime=Date.now(),this.started=!0;for(let t in this.target)this.startValues[t]=this.object[t];return TWEEN.tweens.push(this),this},this.update=function(){if(!this.started)return!1;let t=(Date.now()-this.startTime)/this.duration;t>1&&(t=1);const e=this.easingFunction(t);for(let t in this.target)this.object[t]=this.startValues[t]+(this.target[t]-this.startValues[t])*e;return t<1}},Easing:{Quadratic:{Out:t=>t*(2-t)}}};
+
+        // --- 纹理 ---
+        function getSprite() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            // 更锐利的中心，更柔和的边缘，适合辉光
+            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.1, 'rgba(200,255,255,0.8)');
+            gradient.addColorStop(0.4, 'rgba(100,200,255,0.2)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        let camera, scene, renderer, composer;
+        let starfieldLayers = [];
+        let mainParticles, redParticles, yellowParticles;
+        const mainCount = 4500; const redCount = 300; const yellowCount = 300;
+        const totalCount = mainCount + redCount + yellowCount;
+
+        let coordsRandom = new Float32Array(totalCount * 3);
+        let coordsText = new Float32Array(totalCount * 3);
+        let coordsTree = new Float32Array(totalCount * 3);
+
+        // 0=Initial Random, 1=Tree, 2=Text
+        let currentPhase = 0; 
+        let time = 0;
+        const spriteTexture = getSprite();
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            // 使用深蓝/紫色迷雾增加深度
+            scene.fog = new THREE.FogExp2(0x0b1a2a, 0.0015);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.z = 75; camera.position.y = 10; camera.lookAt(0,0,0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            // 开启色调映射，让高亮更真实
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            document.body.appendChild(renderer.domElement);
+
+            // --- 后期处理 (Bloom 辉光) ---
+            const renderScene = new THREE.RenderPass(scene, camera);
+            //不仅要亮，半径要大，阈值要低，打造强烈的科幻光感
+            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 2.0, 0.5, 0.1);
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            // --- 创建多层背景 ---
+            createMultiLayerStarfield();
+
+            // --- 数据生成 ---
+            generateRandom(0, totalCount);
+            generateText("毛毛\n圣诞快乐！", 0, totalCount);
+            generateTreeBody(0, mainCount);
+            generateTreeDeco(mainCount, redCount);
+            generateTreeDeco(mainCount + redCount, yellowCount);
+
+            // --- 创建粒子 (调整材质以配合辉光) ---
+            // 主体：更冷的青蓝色
+            const mainMat = new THREE.PointsMaterial({ color: 0x00eeff, size: 1.5, map: spriteTexture, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+            mainParticles = new THREE.Points(createGeometry(0, mainCount), mainMat);
+            scene.add(mainParticles);
+
+            // 装饰：提高亮度
+            const redMat = new THREE.PointsMaterial({ color: 0xff2222, size: 2.6, map: spriteTexture, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+            redParticles = new THREE.Points(createGeometry(mainCount, redCount), redMat);
+            scene.add(redParticles);
+
+            const yellowMat = new THREE.PointsMaterial({ color: 0xffdd44, size: 2.4, map: spriteTexture, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+            yellowParticles = new THREE.Points(createGeometry(mainCount + redCount, yellowCount), yellowMat);
+            scene.add(yellowParticles);
+
+            document.getElementById('loading').style.opacity = 0;
+            setTimeout(() => { document.getElementById('instruction').style.opacity = 1; }, 500);
+            
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('click', onClick);
+            document.addEventListener('touchstart', onClick, {passive: false});
+        }
+
+        function createGeometry(startIdx, count) {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i++) pos[i] = coordsRandom[(startIdx*3)+i];
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            return geo;
+        }
+
+        // --- 创建多层级星空背景 ---
+        function createMultiLayerStarfield() {
+            // 1. 远景微尘 (数量多，极小，深蓝色，慢速)
+            addStarLayer(3000, 1200, 0.5, 0x0033aa, 0.0001);
+            // 2. 中景星星 (数量中，中等大小，青白色，中速)
+            addStarLayer(1000, 1000, 1.0, 0x88ccff, 0.0003);
+            // 3. 近景亮星 (数量少，较大，亮白色，较快速)
+            addStarLayer(300, 800, 1.8, 0xffffff, 0.0005);
+            // 4. 太空尘埃 (极大范围，非常稀疏，极慢漂浮)
+            addStarLayer(200, 1500, 4.0, 0x442266, 0.00005, true);
+        }
+
+        function addStarLayer(count, range, size, color, rotationSpeed, isDust = false) {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i+=3) {
+                const r = range + Math.random() * range * 0.5;
+                const t = Math.random() * Math.PI * 2;
+                const p = Math.acos(2 * Math.random() - 1);
+                pos[i] = r * Math.sin(p) * Math.cos(t);
+                pos[i+1] = r * Math.sin(p) * Math.sin(t);
+                pos[i+2] = r * Math.cos(p);
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({
+                color: color, size: size, map: spriteTexture, 
+                transparent: true, opacity: isDust ? 0.3 : 0.7, 
+                blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            const points = new THREE.Points(geo, mat);
+            points.userData = { rotationSpeed: rotationSpeed };
+            scene.add(points);
+            starfieldLayers.push(points);
+        }
+
+        // --- 坐标生成逻辑保持不变 ---
+        function generateRandom(startIdx, count) {
+            for (let i = startIdx; i < startIdx + count; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = 120 + Math.random() * 150; // 扩大随机范围
+                coordsRandom[i*3] = r * Math.sin(phi) * Math.cos(theta);
+                coordsRandom[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+                coordsRandom[i*3+2] = r * Math.cos(phi);
+            }
+        }
+        function generateText(text, startIdx, count) {
+            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+            canvas.width = 512; canvas.height = 512;
+            ctx.font = 'bold 80px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const lines = text.split('\n'); const lineHeight = 100;
+            const startY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+            lines.forEach((line, i) => ctx.fillText(line, canvas.width / 2, startY + i * lineHeight));
+            const imgData = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+            const validPoints = [];
+            for (let y=0; y<canvas.height; y+=3) {
+                for (let x=0; x<canvas.width; x+=3) {
+                    if (imgData[(y*canvas.width+x)*4+3]>128) validPoints.push({x:(x-canvas.width/2)*0.18,y:-(y-canvas.height/2)*0.18});
+                }
+            }
+            for (let i = startIdx; i < startIdx + count; i++) {
+                const p = validPoints[(i-startIdx) % validPoints.length] || {x:0, y:0};
+                coordsText[i*3] = p.x + (Math.random()-0.5)*0.6;
+                coordsText[i*3+1] = p.y + (Math.random()-0.5)*0.6;
+                coordsText[i*3+2] = (Math.random()-0.5)*2; 
+            }
+        }
+        function generateTreeBody(startIdx, count) {
+            const h = 75; const maxR = 24; const layers = 9;
+            let pIdx = startIdx;
+            for (let layer = 0; layer < layers; layer++) {
+                const prog = layer / (layers - 1);
+                const lH = (prog - 0.5) * h;
+                const lR = maxR * (1 - prog * 0.9);
+                const lCount = Math.floor(count / layers * (1.3 - prog * 0.5));
+                for (let i = 0; i < lCount && pIdx < startIdx + count; i++) {
+                    const t = i / lCount;
+                    const a = t * Math.PI * 2 * 3.5 + prog * 2;
+                    const r = lR * Math.sqrt(Math.random()); 
+                    coordsTree[pIdx*3] = Math.cos(a)*r;
+                    coordsTree[pIdx*3+1] = lH + (Math.random()-0.5)*2;
+                    coordsTree[pIdx*3+2] = Math.sin(a)*r;
+                    pIdx++;
+                }
+            }
+            while(pIdx < startIdx + count) {
+                 const t=Math.random(), hh=(t-0.5)*h, r=(1-t)*maxR, a=Math.random()*6.28;
+                 coordsTree[pIdx*3]=Math.cos(a)*r; coordsTree[pIdx*3+1]=hh; coordsTree[pIdx*3+2]=Math.sin(a)*r; pIdx++;
+            }
+        }
+        function generateTreeDeco(startIdx, count) {
+            const h = 75; const maxR = 25;
+            for (let i = startIdx; i < startIdx + count; i++) {
+                const t = Math.random(); 
+                const hh = (t - 0.5) * h;
+                const r = (1 - t) * maxR * (0.9 + Math.random() * 0.2); 
+                const a = Math.random() * 6.28;
+                coordsTree[i*3] = Math.cos(a) * r;
+                coordsTree[i*3+1] = hh;
+                coordsTree[i*3+2] = Math.sin(a) * r;
+            }
+        }
+
+        function onClick(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            
+            if (currentPhase === 0) {
+                currentPhase = 1;
+                document.getElementById('instruction').innerText = "轻触屏幕 // 接收信息";
+                document.getElementById('instruction').style.display = 'block';
+            } else if (currentPhase === 1) {
+                currentPhase = 2;
+                document.getElementById('instruction').style.display = 'none';
+            } else {
+                currentPhase = 1;
+            }
+
+            // 颜色变换：树形态(1)变暖绿，其他形态变冷青
+            const targetColor = currentPhase === 1 ? { r: 0.1, g: 0.9, b: 0.5 } : { r: 0.0, g: 0.93, b: 1.0 };
+            new TWEEN.Tween(mainParticles.material.color).to(targetColor, 1500).easing(TWEEN.Easing.Quadratic.Out).start();
+            
+            // 点击时增加临时的亮度冲击
+            new TWEEN.Tween(mainParticles.material).to({opacity: 1, size: 2.0}, 300).yoyo(true).repeat(1).start();
+        }
+
+        function updateParticles(mesh, target, startIdx, speed) {
+            const pos = mesh.geometry.attributes.position.array;
+            const count = pos.length / 3;
+            for (let i = 0; i < count; i++) {
+                const gIdx = (startIdx + i) * 3;
+                const lIdx = i * 3;
+                pos[lIdx] += (target[gIdx] - pos[lIdx]) * speed;
+                pos[lIdx+1] += (target[gIdx+1] - pos[lIdx+1]) * speed;
+                pos[lIdx+2] += (target[gIdx+2] - pos[lIdx+2]) * speed;
+            }
+            mesh.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            time += 0.02;
+
+            let target;
+            if (currentPhase === 0) target = coordsRandom;
+            else if (currentPhase === 1) target = coordsTree;
+            else target = coordsText;
+
+            const speed = currentPhase === 2 ? 0.07 : 0.04; 
+
+            updateParticles(mainParticles, target, 0, speed);
+            updateParticles(redParticles, target, mainCount, speed);
+            updateParticles(yellowParticles, target, mainCount + redCount, speed);
+
+            // 闪烁效果（配合辉光更明显）
+            mainParticles.material.opacity = 0.7 + Math.sin(time * 2) * 0.2;
+            redParticles.material.size = 2.6 + Math.sin(time * 5) * 0.8;
+            yellowParticles.material.size = 2.4 + Math.sin(time * 4 + 2) * 0.8;
+
+            // 背景层旋转
+            starfieldLayers.forEach(layer => {
+                layer.rotation.y += layer.userData.rotationSpeed;
+                layer.rotation.x += layer.userData.rotationSpeed * 0.5;
+            });
+            
+            const group = [mainParticles, redParticles, yellowParticles];
+            
+            if (currentPhase === 2) {
+                // 文字形态：回正
+                group.forEach(p => {
+                    p.rotation.x = THREE.MathUtils.lerp(p.rotation.x, 0, 0.06);
+                    p.rotation.y = THREE.MathUtils.lerp(p.rotation.y, 0, 0.06);
+                    p.rotation.z = THREE.MathUtils.lerp(p.rotation.z, 0, 0.06);
+                });
+            } else {
+                // 树和随机形态：旋转
+                group.forEach(p => {
+                    const rotSpeed = currentPhase === 1 ? -0.008 : 0.0015;
+                    p.rotation.y += rotSpeed;
+                    if (Math.abs(p.rotation.x) > 0.01) p.rotation.x = THREE.MathUtils.lerp(p.rotation.x, 0, 0.05);
+                    if (Math.abs(p.rotation.z) > 0.01) p.rotation.z = THREE.MathUtils.lerp(p.rotation.z, 0, 0.05);
+                });
+            }
+
+            // 使用 composer 进行渲染，而不是 renderer
+            composer.render();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
+
+```
